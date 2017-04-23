@@ -11,6 +11,11 @@ from graphql.type import (
     GraphQLInterfaceType,
 )
 
+from base64 import (
+    urlsafe_b64encode as b64encode,
+    urlsafe_b64decode as b64decode,
+)
+
 
 def node_definitions(id_fetcher, type_resolver=None, id_resolver=None):
     '''
@@ -49,22 +54,27 @@ def node_definitions(id_fetcher, type_resolver=None, id_resolver=None):
     return node_interface, node_field
 
 
-def to_global_id(type, id):
-    '''
-    Takes a type name and an ID specific to that type name, and returns a
-    "global ID" that is unique among all types.
-    '''
-    return base64(':'.join([type, text_type(id)]))
-
-
 def from_global_id(global_id):
     '''
     Takes the "global ID" created by toGlobalID, and retuns the type name and ID
     used to create it.
     '''
-    unbased_global_id = unbase64(global_id)
-    _type, _id = unbased_global_id.split(':', 1)
-    return _type, _id
+
+    # adds base64 padding
+    hash = global_id + '=' * (-len(global_id)%4)
+    type, id = b64decode(hash).decode('utf8').split(':', 1)
+    return type, id
+
+
+def to_global_id(type, id):
+    '''
+    Takes a type name and an ID specific to that type name, and returns a
+    url safe "global ID" that is unique among all types.
+    '''
+
+    hash = b64encode(':'.join([type, text_type(id)]).encode('utf8'))
+    # removes base64 padding
+    return hash.decode('utf8').rstrip("=")
 
 
 def global_id_field(type_name, id_fetcher=None):
